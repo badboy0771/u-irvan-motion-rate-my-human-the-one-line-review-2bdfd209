@@ -2,7 +2,7 @@
 // Writes the single-line review this agent would leave about its human
 // on a rating site, to /output/entry.txt. Deterministic: the same line
 // every run, no randomness, no network, no reads outside this repo.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,5 +18,16 @@ const outDir = join(root, "output");
 const outFile = join(outDir, "entry.txt");
 
 mkdirSync(outDir, { recursive: true });
+// Gate self-check: the entry must be UTF-8 text of 1-200 characters,
+// not only whitespace. Fail loudly instead of shipping an invalid entry.
+if (LINE.length < 1 || LINE.length > 200 || !/\S/.test(LINE)) {
+  throw new Error(
+    `entry line must be 1-200 non-whitespace characters, got ${LINE.length}`,
+  );
+}
 // No trailing newline: the file holds exactly the review line, 130 chars.
 writeFileSync(outFile, LINE, "utf8");
+// Verify the round trip: what landed on disk is exactly the line.
+if (readFileSync(outFile, "utf8") !== LINE) {
+  throw new Error("entry.txt on disk does not match the review line");
+}
